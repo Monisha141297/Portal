@@ -9,10 +9,10 @@
 This extends the existing quiz platform spec with the newly mandated features:
 
 - Training-video-gated assessments (per product)
-- Badges / gamification (10 badges)
-- Live, Kahoot-style question delivery with per-participant question shuffling
+- Badges will be provided based on some condition.
+- Question delivery with per-participant question shuffling
 - Invite-link based quiz assignment
-- Examiner hierarchy (E1/E2 visibility rules)
+- Examiner hierarchy for CRUD operation.
 - Photo upload
 - Native mobile support (React Native)
 - Redis as the live-session layer, reconciled into Postgres as system of record
@@ -25,8 +25,8 @@ It replaces the original MSSQL-based design with **Postgres + Redis**, and refra
 
 | Role | Summary |
 |---|---|
-| **Participant (Employee)** | Logs in → sees assigned products needing training → watches product video → takes assessment → sees result + badges post-deadline |
-| **Examiner (E1 / E2, ...)** | Creates question pools & quizzes, schedules them, generates invite links, reviews results, manages retakes. Any Examiner can **view** any other Examiner's quizzes; only the **owner** can edit/delete a quiz while it's in `DRAFT`. Once `SCHEDULED`, **no one** (including the owner) can edit questions/marks/timing. |
+| **Participant (Employee)** | Logs in → sees assigned products needing training → watches product video → takes assessment → sees result  |
+| **Examiner** | Creates question pools & quizzes, schedules them, generates invite links, reviews results, manages retakes. Any Examiner can **view** any other Examiner's quizzes; only the **owner** can edit/delete a quiz while it's in `DRAFT`. Once `SCHEDULED`, **no one** (including the owner) can edit questions/marks/timing. |
 | **Admin** | Read-only visualization across all participants/quizzes/results. No export, no drill-down into individual answers. |
 
 ### 2.1 Examiner visibility matrix
@@ -50,7 +50,7 @@ It replaces the original MSSQL-based design with **Postgres + Redis**, and refra
 3. Video complete → **Start Assessment** becomes available (only within the invite/schedule window).
 4. Quiz runs live, one question at a time, server-paced (see §6).
 5. Post-deadline (or post-submit for Understanding quizzes): view score, correct/incorrect breakdown, and any **badges earned**.
-6. **Mandatory** quiz failed → participant waits for Examiner to mark "Must Retake" → gets notified → retakes (max 3 attempts total, new random 10-of-50 question set each time).
+6. **Mandatory** quiz failed → participant waits for Examiner to mark "Must Retake" → gets notified → retakes (max 3 attempts total, new random 10-of-50 question set each time). Each participants receives same set of questions but not in same order.
 7. **Understanding** quiz: no passing criteria, no retake, no scheduling required — can be attempted ad hoc within its availability window.
 
 ### 3.2 Examiner
@@ -225,8 +225,7 @@ POST /auth/logout
 ### Participant
 ```
 GET  /participant/products                 # products needing training + status
-GET  /participant/products/:id/video        # signed video URL + resume position
-POST /participant/products/:id/video/progress
+GET  /participant/products/:id/video        # signed video URL
 GET  /participant/quizzes                   # assigned/invited, with status
 GET  /participant/quiz/:quizId              # metadata (pre-start)
 POST /participant/quiz/:quizId/start        # creates Attempt, opens Redis session
@@ -234,7 +233,7 @@ WS   /participant/quiz/:attemptId/live       # question/answer event stream
 GET  /participant/quiz/:attemptId/result     # post-deadline only
 GET  /participant/badges
 POST /participant/profile/photo
-POST /participant/invite/:token/accept
+POST /participant/invite/:token/accept   # Validate the token and make Quiz assigned to avoid duplicate accept
 ```
 
 ### Examiner
